@@ -28,6 +28,13 @@ const defaultAvailability = {
             "17": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"],
             "18": ["10:00", "11:00", "14:00", "15:00"],
             "19": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"]
+        },
+        "2": {
+            "1": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"],
+            "2": ["10:00", "11:00", "14:00", "15:00"],
+            "3": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"],
+            "4": ["10:00", "11:00", "14:00", "15:00"],
+            "5": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"]
         }
     }
 };
@@ -40,7 +47,9 @@ async function readAppointments() {
     } catch (error) {
         // אם הקובץ לא קיים, מחזירים מערך ריק
         console.log('Creating new appointments file...');
-        return { appointments: [], availability: defaultAvailability };
+        const initialData = { appointments: [], availability: defaultAvailability };
+        await writeAppointments(initialData);
+        return initialData;
     }
 }
 
@@ -58,6 +67,20 @@ async function writeAppointments(data) {
 // דף הבית - מפנה לדף הנחיתה
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/index.html'));
+});
+
+// דף אדמין
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, '../admin/index.html'));
+});
+
+// Health check route for Render
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'OK', 
+        message: 'Server is running',
+        timestamp: new Date().toISOString() 
+    });
 });
 
 // קבלת שעות פנויות לתאריך מסוים
@@ -228,13 +251,24 @@ app.post('/api/admin/availability', async (req, res) => {
     }
 });
 
-// Health check route for Render
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+// קבלת זמינות קיימת
+app.get('/api/admin/availability/:year/:month/:day', async (req, res) => {
+    try {
+        const { year, month, day } = req.params;
+        const data = await readAppointments();
+
+        const slots = data.availability?.[year]?.[month]?.[day] || [];
+
+        res.json({ slots });
+    } catch (error) {
+        console.error('Error getting availability:', error);
+        res.status(500).json({ error: 'שגיאה בקבלת הזמינות' });
+    }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 Admin dashboard: /admin`);
-    console.log(`🎯 Landing page: /`);
+    console.log(`🏠 Home page: http://localhost:${PORT}`);
+    console.log(`📊 Admin dashboard: http://localhost:${PORT}/admin`);
+    console.log(`❤️ Health check: http://localhost:${PORT}/health`);
 });
