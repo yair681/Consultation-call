@@ -2,10 +2,43 @@ class AppointmentBooking {
     constructor() {
         // שימוש ב-URL יחסי במקום localhost
         this.baseURL = window.location.origin;
+        this.selectedTime = null;
         this.init();
     }
 
-    // ... rest of the code remains the same until the fetch calls
+    init() {
+        this.setMinDate();
+        this.setupEventListeners();
+        this.loadInitialData();
+    }
+
+    setMinDate() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('datePicker').min = today;
+    }
+
+    setupEventListeners() {
+        // שינוי תאריך
+        document.getElementById('datePicker').addEventListener('change', (e) => {
+            this.loadAvailableSlots(e.target.value);
+        });
+
+        // שליחת טופס
+        document.getElementById('submitBtn').addEventListener('click', () => {
+            this.submitAppointment();
+        });
+
+        // Enter key support
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.submitAppointment();
+            }
+        });
+    }
+
+    async loadInitialData() {
+        // ניתן לטעון כאן נתונים נוספים אם needed
+    }
 
     async loadAvailableSlots(date) {
         if (!date) return;
@@ -27,8 +60,57 @@ class AppointmentBooking {
         }
     }
 
+    displayTimeSlots(slots) {
+        const timeSlotsContainer = document.getElementById('timeSlots');
+        timeSlotsContainer.innerHTML = '';
+
+        if (slots.length === 0) {
+            timeSlotsContainer.innerHTML = '<div class="error-message">אין שעות פנויות בתאריך זה</div>';
+            return;
+        }
+
+        slots.forEach(slot => {
+            const slotElement = document.createElement('div');
+            slotElement.className = 'time-slot';
+            slotElement.textContent = slot;
+            slotElement.addEventListener('click', () => this.selectTimeSlot(slot, slotElement));
+            timeSlotsContainer.appendChild(slotElement);
+        });
+    }
+
+    selectTimeSlot(selectedTime, clickedElement) {
+        // הסרת בחירה קודמת
+        document.querySelectorAll('.time-slot').forEach(slot => {
+            slot.classList.remove('selected');
+        });
+
+        // בחירת המשבצת הנוכחית
+        clickedElement.classList.add('selected');
+        this.selectedTime = selectedTime;
+    }
+
     async submitAppointment() {
-        // ... existing validation code ...
+        const date = document.getElementById('datePicker').value;
+        const name = document.getElementById('name').value;
+        const email = document.getElementById('email').value;
+        const phone = document.getElementById('phone').value;
+
+        // ולידציה בסיסית
+        if (!date || !this.selectedTime || !name || !email) {
+            this.showError('אנא מלא את כל השדות הדרושים');
+            return;
+        }
+
+        if (!this.isValidEmail(email)) {
+            this.showError('אנא הכנס אימייל תקין');
+            return;
+        }
+
+        const submitBtn = document.getElementById('submitBtn');
+        const originalText = submitBtn.textContent;
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'קובע תור...';
 
         try {
             const appointmentData = {
@@ -66,13 +148,46 @@ class AppointmentBooking {
             this.showError(error.message || 'אירעה שגיאה בקביעת התור. אנא נסה שוב.');
         } finally {
             submitBtn.disabled = false;
-            submitBtn.textContent = '✅ קבע שיחה עכשיו';
+            submitBtn.textContent = originalText;
         }
     }
 
-    // ... rest of the code remains the same
+    isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    showError(message) {
+        const errorDiv = document.getElementById('dateError');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        
+        setTimeout(() => {
+            errorDiv.style.display = 'none';
+        }, 5000);
+    }
+
+    showSuccess(message) {
+        const successDiv = document.getElementById('successMessage');
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+        
+        setTimeout(() => {
+            successDiv.style.display = 'none';
+        }, 10000);
+    }
+
+    resetForm() {
+        document.getElementById('datePicker').value = '';
+        document.getElementById('name').value = '';
+        document.getElementById('email').value = '';
+        document.getElementById('phone').value = '';
+        document.getElementById('timeSlots').innerHTML = '';
+        this.selectedTime = null;
+    }
 }
 
+// אתחול האפליקציה כאשר הדף נטען
 document.addEventListener('DOMContentLoaded', () => {
     new AppointmentBooking();
 });
