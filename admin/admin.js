@@ -1,6 +1,7 @@
 class AdminDashboard {
     constructor() {
-        this.baseURL = 'http://localhost:3000';
+        // שימוש ב-URL יחסי
+        this.baseURL = window.location.origin;
         this.appointments = [];
         this.init();
     }
@@ -26,11 +27,21 @@ class AdminDashboard {
         document.getElementById('statusFilter').addEventListener('change', (e) => {
             this.filterAppointments(document.getElementById('searchInput').value, e.target.value);
         });
+
+        // Enter key in availability form
+        document.getElementById('availSlots').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.setAvailability();
+            }
+        });
     }
 
     async loadAppointments() {
         try {
             const response = await fetch(`${this.baseURL}/api/admin/appointments`);
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
             const data = await response.json();
 
             this.appointments = data.appointments;
@@ -84,7 +95,7 @@ class AdminDashboard {
                             ❌ בטל תור
                         </button>` : 
                         `<button class="btn btn-confirm" onclick="admin.updateAppointmentStatus('${appointment.id}', 'confirmed')">
-                            ✅אשר תור
+                            ✅ אשר תור
                         </button>`
                     }
                 </div>
@@ -121,7 +132,14 @@ class AdminDashboard {
                 body: JSON.stringify({ status: newStatus })
             });
 
-            if (response.ok) {
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Network error');
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
                 this.showMessage('סטטוס התור עודכן בהצלחה!', 'success');
                 this.loadAppointments(); // רענון הנתונים
             } else {
@@ -161,7 +179,14 @@ class AdminDashboard {
                 })
             });
 
-            if (response.ok) {
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Network error');
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
                 this.showMessage('זמינות נשמרה בהצלחה!', 'success');
                 dateInput.value = '';
                 slotsInput.value = '';
