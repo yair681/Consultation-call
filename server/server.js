@@ -6,17 +6,23 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// חשוב: שימוש ב-path יחסי שמתאים ל-Render
 const APPOINTMENTS_FILE = path.join(__dirname, 'appointments.json');
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static('public'));
 
-// נתוני זמינות ראשוניים (ניתן לשנות לפי הצורך)
+// הגשה סטטית של קבצים
+app.use('/client', express.static(path.join(__dirname, '../client')));
+app.use('/admin', express.static(path.join(__dirname, '../admin')));
+app.use(express.static(path.join(__dirname, '../client'))); // עבור הדף הראשי
+
+// נתוני זמינות ראשוניים
 const defaultAvailability = {
     "2024": {
-        "1": { // ינואר
+        "1": {
             "15": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"],
             "16": ["10:00", "11:00", "14:00", "15:00"],
             "17": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"],
@@ -33,15 +39,26 @@ async function readAppointments() {
         return JSON.parse(data);
     } catch (error) {
         // אם הקובץ לא קיים, מחזירים מערך ריק
+        console.log('Creating new appointments file...');
         return { appointments: [], availability: defaultAvailability };
     }
 }
 
 async function writeAppointments(data) {
-    await fs.writeFile(APPOINTMENTS_FILE, JSON.stringify(data, null, 2));
+    try {
+        await fs.writeFile(APPOINTMENTS_FILE, JSON.stringify(data, null, 2));
+    } catch (error) {
+        console.error('Error writing to file:', error);
+        throw error;
+    }
 }
 
 // Routes
+
+// דף הבית - מפנה לדף הנחיתה
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/index.html'));
+});
 
 // קבלת שעות פנויות לתאריך מסוים
 app.get('/api/availability', async (req, res) => {
@@ -116,7 +133,6 @@ app.post('/api/appointments', async (req, res) => {
         data.appointments.push(newAppointment);
         await writeAppointments(data);
 
-        // כאן ניתן להוסיף שליחת אימייל או הודעת Telegram
         console.log(`📅 תור חדש: ${name} - ${date} ${time}`);
 
         res.status(201).json({
@@ -212,10 +228,13 @@ app.post('/api/admin/availability', async (req, res) => {
     }
 });
 
-// הגשת קבצי סטטיקים ל-admin
-app.use('/admin', express.static(path.join(__dirname, '../admin')));
+// Health check route for Render
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📊 Admin dashboard: http://localhost:${PORT}/admin`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📊 Admin dashboard: /admin`);
+    console.log(`🎯 Landing page: /`);
 });
